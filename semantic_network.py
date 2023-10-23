@@ -137,7 +137,7 @@ class SemanticNetwork:
         declarations_list = [d.relation for d in self.declarations if
                              (isinstance(d.relation, Member) or isinstance(d.relation, Subtype))
                              and d.relation.entity1 == start]
-        print(declarations_list)
+
         if len(declarations_list) == 1 and declarations_list[0].entity2 == goal:
             return True
 
