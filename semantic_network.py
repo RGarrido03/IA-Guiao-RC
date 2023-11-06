@@ -162,7 +162,7 @@ class SemanticNetwork:
 
         if len(decl) == 0:
             return [b]
-        
+
         if b in [d.relation.entity2 for d in decl]:
             return [b, a]
 
@@ -230,7 +230,6 @@ class SemanticNetwork:
 
     def query_assoc_value(self, E, A):
         local = self.query_local(e1=E, rel=A)
-
         local_count = Counter([d.relation.entity2 for d in local]).most_common()
 
         if len(local_count) == 1:
@@ -239,12 +238,4 @@ class SemanticNetwork:
         herdadas = self.query(entity=E, rel=A)
         herdadas_count = Counter([d.relation.entity2 for d in herdadas]).most_common()
 
-        F = {}
-        for v, c in local_count:
-            F[v] = c
-        for v, c in herdadas_count:
-            if v in F:
-                F[v] += c
-            else:
-                F[v] = c
-        return sorted(F.items(), key=lambda e: e[1], reverse=True)[0][0]
+        return sorted(herdadas_count, key=lambda e: e[1], reverse=True)[0][0]
