@@ -1,7 +1,7 @@
 # Guiao de representacao do conhecimento
 # -- Redes semanticas
 # 
-# Inteligencia Artificial & Introducao a Inteligencia Artificial
+# Inteligencia Artificial & Introducao entity Inteligencia Artificial
 # DETI / UA
 #
 # (c) Luis Seabra Lopes, 2012-2020
@@ -12,7 +12,7 @@
 # Classe Relation, com as seguintes classes derivadas:
 #     - Association - uma associacao genérica entre duas entidades
 #     - Subtype - uma relacao de subtipo entre dois tipos
-#     - Member - uma relacao de pertenca de uma instância a um tipo
+#     - Member - uma relacao de pertenca de uma instância entity um tipo
 #
 
 class Relation:
@@ -37,7 +37,7 @@ class Association(Relation):
 
 
 #   Exemplo:
-#   a = Association('socrates','professor','filosofia')
+#   entity = Association('socrates','professor','filosofia')
 
 # Subclasse Subtype
 class Subtype(Relation):
@@ -58,7 +58,7 @@ class Member(Relation):
 #   m = Member('socrates','homem')
 
 # classe Declaration
-# -- associa um utilizador a uma relacao por si inserida
+# -- associa um utilizador entity uma relacao por si inserida
 #    na rede semantica
 #
 class Declaration:
@@ -74,7 +74,7 @@ class Declaration:
 
 
 #   Exemplos:
-#   da = Declaration('descartes',a)
+#   da = Declaration('descartes',entity)
 #   ds = Declaration('darwin',s)
 #   dm = Declaration('descartes',m)
 
@@ -92,12 +92,13 @@ class SemanticNetwork:
     def insert(self, decl):
         self.declarations.append(decl)
 
-    def query_local(self, user=None, e1=None, rel=None, e2=None):
+    def query_local(self, user=None, e1=None, rel=None, rel_type=None, e2=None):
         self.query_result = \
             [d for d in self.declarations
              if (user is None or d.user == user)
              and (e1 is None or d.relation.entity1 == e1)
              and (rel is None or d.relation.name == rel)
+             and (rel_type is None or isinstance(d.relation, rel_type))
              and (e2 is None or d.relation.entity2 == e2)]
         return self.query_result
 
@@ -142,3 +143,54 @@ class SemanticNetwork:
             return True
 
         return any([self.predecessor(goal, d.entity2) for d in declarations_list])
+
+    def predecessor_path(self, a: str, b: str) -> list | None:
+        decl = self.query_local(e1=b, rel_type=(Subtype, Member))
+        print(f"\na = {a}, b = {b}")
+        print(f"decl = {decl}")
+
+        if len(decl) == 0:
+            return None
+
+        print(f"decl entity2 list = {[d.relation.entity2 for d in decl]}")
+        if b in [d.relation.entity2 for d in decl]:
+            return [b, a]
+
+        for d in decl:
+            if res := self.predecessor_path(b, d.relation.entity2):
+                return res + [a]
+
+    def query(self, entity: str, rel=None) -> list:
+        decl_local = (self.query_local(e1=entity, rel=rel, rel_type=Association) +
+                      self.query_local(e2=entity, rel=rel, rel_type=Association))
+
+        pred_direct = self.query_local(e1=entity, rel_type=(Member, Subtype))
+
+        decl = decl_local
+        for dp in pred_direct:
+            decl += self.query(dp.relation.entity2, rel)
+
+        return decl
+
+    def query2(self, entity: str, rel: str = None) -> list:
+        decl_local = (self.query_local(e1=entity, rel=rel, rel_type=(Member, Subtype)) +
+                      self.query_local(e2=entity, rel=rel, rel_type=(Member, Subtype)))
+
+        return decl_local + self.query(entity, rel)
+
+    def query_cancel(self, entity: str, rel: str) -> list:
+        decl = (self.query_local(e1=entity, rel=rel, rel_type=Association) +
+                self.query_local(e2=entity, rel=rel, rel_type=Association))
+        decl_name = [d.relation.name for d in decl]
+
+        for pd in self.query_local(e1=entity, rel_type=(Member, Subtype)):
+            decl += [p for p in self.query_cancel(pd.relation.entity2, rel) if p.relation.name not in decl_name]
+
+        return decl
+
+    def query_down(self, tipo: str, assoc: str, first: bool = True) -> list:
+        decl = ([] if first else self.query_local(e1=tipo, rel=assoc) + self.query_local(e2=tipo, rel=assoc))
+
+        for dd in self.query_local(e2=tipo, rel_type=(Member, Subtype)):
+            decl += [p for p in self.query_down(dd.relation.entity1, assoc, False)]
+        return decl
