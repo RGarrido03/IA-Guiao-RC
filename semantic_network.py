@@ -7,6 +7,9 @@
 # (c) Luis Seabra Lopes, 2012-2020
 # v1.9 - 2019/10/20
 #
+from collections import Counter
+from statistics import mean
+from functools import reduce
 
 
 # Classe Relation, com as seguintes classes derivadas:
@@ -38,6 +41,16 @@ class Association(Relation):
 
 #   Exemplo:
 #   entity = Association('socrates','professor','filosofia')
+
+class AssocOne(Association):
+    def __init__(self, e1, assoc, e2):
+        Association.__init__(self, e1, assoc, e2)
+
+
+class AssocNum(Association):
+    def __init__(self, e1, assoc, e2):
+        Association.__init__(self, e1, assoc, e2)
+
 
 # Subclasse Subtype
 class Subtype(Relation):
@@ -194,3 +207,47 @@ class SemanticNetwork:
         for dd in self.query_local(e2=tipo, rel_type=(Member, Subtype)):
             decl += [p for p in self.query_down(dd.relation.entity1, assoc, False)]
         return decl
+
+    def query_induce(self, tipo: str, assoc: str) -> list:
+        return Counter([d.relation.entity2 for d in self.query_down(tipo, assoc)]).most_common(1)[0][0]
+
+    def query_local_assoc(self, entity: str, rel: str) -> tuple:
+        local = self.query_local(e1=entity, rel=rel)
+
+        for d in local:
+            if isinstance(d.relation, AssocOne):
+                valor, count = Counter([d.relation.entity2 for d in local]).most_common(1)[0]
+                return valor, count / len(local)
+            elif isinstance(d.relation, AssocNum):
+                return mean([d.relation.entity2 for d in local])
+            elif isinstance(d.relation, Association):
+                all_assoc = [(val, c / len(local)) for (val, c) in
+                             Counter([d.relation.entity2 for d in local]).most_common()]
+
+                def aux(carry, elem):
+                    l, lim = carry
+                    val, freq = elem
+                    return (l + [elem], lim + freq) if lim < 0.75 else l
+
+                return reduce(aux, all_assoc, ([], 0))
+
+    def query_assoc_value(self, E, A):
+        local = self.query_local(e1=E, rel=A)
+
+        local_count = Counter([d.relation.entity2 for d in local]).most_common()
+
+        if len(local_count) == 1:
+            return local_count[0][0]
+
+        herdadas = self.query(entity=E, rel=A)
+        herdadas_count = Counter([d.relation.entity2 for d in herdadas]).most_common()
+
+        F = {}
+        for v, c in local_count:
+            F[v] = c
+        for v, c in herdadas_count:
+            if v in F:
+                F[v] += c
+            else:
+                F[v] = c
+        return sorted(F.items(), key=lambda e: e[1], reverse=True)[0][0]
