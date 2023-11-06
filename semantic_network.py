@@ -159,19 +159,16 @@ class SemanticNetwork:
 
     def predecessor_path(self, a: str, b: str) -> list | None:
         decl = self.query_local(e1=b, rel_type=(Subtype, Member))
-        print(f"\na = {a}, b = {b}")
-        print(f"decl = {decl}")
 
         if len(decl) == 0:
-            return None
-
-        print(f"decl entity2 list = {[d.relation.entity2 for d in decl]}")
+            return [b]
+        
         if b in [d.relation.entity2 for d in decl]:
             return [b, a]
 
         for d in decl:
             if res := self.predecessor_path(b, d.relation.entity2):
-                return res + [a]
+                return res + [b]
 
     def query(self, entity: str, rel=None) -> list:
         decl_local = (self.query_local(e1=entity, rel=rel, rel_type=Association) +
